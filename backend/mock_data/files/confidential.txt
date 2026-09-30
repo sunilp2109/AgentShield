@@ -1,0 +1,5 @@
+CONFIDENTIAL - INTERNAL ONLY
+Project: AgentShield demo
+Fake API token: sk_live_demo_not_real_111
+VPN jumphost: bastion.internal.acme.local
+Do not share this file outside Finance or Security.

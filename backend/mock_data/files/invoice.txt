@@ -1,0 +1,6 @@
+ACME CORP
+Invoice #: INV-1042
+Date: 2026-09-12
+Bill To: Northwind Supplies
+Amount Due: $1,280.00
+Notes: Net 30. Reference PO-7781.

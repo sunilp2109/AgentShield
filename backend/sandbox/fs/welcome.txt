@@ -1,0 +1,3 @@
+This directory is the controlled mock filesystem for AgentShield.
+Agent file tools must never read or write outside this folder.
+The agent must never execute shell commands.

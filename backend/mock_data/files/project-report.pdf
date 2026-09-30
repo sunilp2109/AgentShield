@@ -1,0 +1,7 @@
+Q3 Operations Report
+Status: On track
+Highlights:
+- Browser automation coverage expanded to internal docs
+- Mock mailbox used for all agent mail trials
+- No production credentials were used
+Next: review firewall allow/block rates

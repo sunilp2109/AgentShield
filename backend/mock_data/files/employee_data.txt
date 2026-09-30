@@ -1,0 +1,4 @@
+employee_id,name,role,email
+1001,Amina Cole,Analyst,amina.cole@acme.local
+1002,Rio Patel,Engineer,rio.patel@acme.local
+1003,Samir Brooks,Finance,samir.brooks@acme.local

@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - ./backend/.env.example
+    environment:
+      APP_ENV: development
+      SHIELD_ENABLED: ${SHIELD_ENABLED:-true}
+      DATABASE_URL: sqlite:///./data/agentshield.db
+      SANDBOX_FS_ROOT: ./mock_data/files
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      CORS_ORIGINS: http://localhost:3000
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/data:/app/data
+      - ./backend/sandbox:/app/sandbox
+      - ./backend/mock_data:/app/mock_data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000

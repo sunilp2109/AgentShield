@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/security/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { ACTIVITY_FILTERS, type ActivityFilter } from "@/lib/dashboard";
 import { filterActivityEvents } from "@/lib/dashboard-data";
+import { safeDisplay } from "@/lib/audit";
 import { formatRelativeTime, formatSourceLabel } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 import type { LoadState, SecurityEvent } from "@/types";
@@ -106,8 +107,13 @@ export function LiveActivityPanel({
                     <p className="truncate text-sm font-medium">
                       {formatSourceLabel(event.source_type)} → {event.tool_name}
                     </p>
+                    {event.user_intent ? (
+                      <p className="truncate font-mono text-xs text-muted-foreground/90 mt-0.5" title={event.user_intent}>
+                        "{safeDisplay(event.user_intent)}"
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">
-                      Risk {event.risk_score ?? "n/a"}
+                      CVSS {event.risk_score != null ? event.risk_score.toFixed(1) : "n/a"}
                       {event.risk_level ? ` · ${event.risk_level}` : ""} ·{" "}
                       {formatRelativeTime(event.timestamp)}
                     </p>

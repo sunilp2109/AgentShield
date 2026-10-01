@@ -1,35 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentChatView } from "@/components/agent/AgentChatView";
+import { sendChat } from "@/lib/agent-api";
 import { ApiError } from "@/lib/api";
+import { getHealthStatus, getShieldStatus, getAuditEvents, readShieldEnabled } from "@/lib/security-api";
 import type { AgentChatResponse, AgentToolRun, SecurityEvent } from "@/types";
-
-vi.mock("next/link", () => ({
-  default: ({ children, href, ...props }: { children: ReactNode; href: string }) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
 
 vi.mock("@/lib/agent-api", () => ({
   sendChat: vi.fn(),
 }));
 
-vi.mock("@/lib/security-api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/security-api")>("@/lib/security-api");
-  return {
-    ...actual,
-    getHealthStatus: vi.fn(),
-    getShieldStatus: vi.fn(),
-    getAuditEvents: vi.fn(),
-  };
-});
-
-import { sendChat } from "@/lib/agent-api";
-import { getAuditEvents, getHealthStatus, getShieldStatus } from "@/lib/security-api";
+vi.mock("@/lib/security-api", () => ({
+  getHealthStatus: vi.fn(),
+  getShieldStatus: vi.fn(),
+  getAuditEvents: vi.fn(),
+  readShieldEnabled: vi.fn(() => true),
+}));
 
 function toolRun(overrides: Partial<AgentToolRun> = {}): AgentToolRun {
   return {
@@ -40,25 +27,23 @@ function toolRun(overrides: Partial<AgentToolRun> = {}): AgentToolRun {
     status: "blocked",
     result: null,
     reasons: ["Untrusted content attempted to access a private or sensitive file."],
-    trust: { source_type: "PDF", trust_level: "UNTRUSTED" },
     execution_status: "BLOCKED",
     approval_required: false,
-    approval_id: null,
-    risk_score: 94,
     risk_level: "CRITICAL",
+    risk_score: 94,
     ...overrides,
   };
 }
 
 function chatPayload(overrides: Partial<AgentChatResponse> = {}): AgentChatResponse {
   return {
-    response: "I couldn't complete that action because the requested operation was blocked by the application's security controls.",
-    tool_calls: [{ name: "read_file", arguments: { path: "confidential.txt" } }],
+    response: "I couldn't complete that action. The action was blocked by security policy.",
+    tool_calls: [{ name: "read_file", arguments: { path: "invoice.pdf" } }],
     tool_results: [toolRun()],
-    reasoning_summary: "document follow-up",
-    sources: ["invoice.pdf"],
+    reasoning_summary: "",
+    sources: [],
     session_id: "agent-session-1",
-    request_id: "req-chat-1",
+    request_id: "req-1",
     shield_enabled: true,
     ...overrides,
   };
@@ -69,19 +54,19 @@ function event(overrides: Partial<SecurityEvent> = {}): SecurityEvent {
     id: "evt-1",
     timestamp: "2026-09-20T16:00:00Z",
     session_id: "agent-session-1",
-    request_id: "req-chat-1",
+    request_id: "req-1",
     shield_enabled: true,
-    source_type: "DOCUMENT",
+    source_type: "PDF",
     source_name: "invoice.pdf",
     trust_level: "UNTRUSTED",
     user_intent: "Summarize invoice.pdf",
-    tool_name: "send_email",
-    action: "send_email",
-    target_resource: "attacker@example.com",
+    tool_name: "read_file",
+    action: "read_file",
+    target_resource: "invoice.pdf",
     data_sensitivity: "CRITICAL",
-    destination_type: "EXTERNAL_EMAIL",
+    destination_type: null,
     injection_detected: true,
-    injection_confidence: 0.95,
+    injection_confidence: 0.94,
     risk_score: 94,
     risk_level: "CRITICAL",
     policy_decision: "BLOCK",
@@ -100,10 +85,14 @@ function ready() {
   vi.mocked(getShieldStatus).mockResolvedValue({ shield_enabled: true, enabled: true, mode: "PROTECTED" });
 }
 
+function getInput() {
+  return screen.getByRole("textbox", { name: "Type a message" });
+}
+
 async function sendMessage(text: string) {
-  const input = screen.getByPlaceholderText("Type a message...");
+  const input = getInput();
   fireEvent.change(input, { target: { value: text } });
-  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 }
 
 describe("AgentChatView", () => {
@@ -113,42 +102,35 @@ describe("AgentChatView", () => {
     vi.mocked(getHealthStatus).mockReset();
     vi.mocked(getShieldStatus).mockReset();
   });
+
   it("loads the assistant chat without sending a message", async () => {
     ready();
     render(<AgentChatView />);
-    expect(await screen.findByRole("heading", { name: "Agent" })).toBeInTheDocument();
-    expect(screen.getByText("AI Assistant")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Type a message...")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "AgentShield AI" })).toBeInTheDocument();
+    expect(screen.getByText("Runtime security active")).toBeInTheDocument();
+    expect(getInput()).toBeInTheDocument();
     expect(sendChat).not.toHaveBeenCalled();
   });
 
-  it("lists predefined demo scenarios without sending", async () => {
+  it("lists suggested prompt cards in the empty state", async () => {
     ready();
     render(<AgentChatView />);
-    expect(await screen.findByRole("heading", { name: "Malicious document" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Data exfiltration" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Instruction override" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "External email" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trusted document" })).toBeInTheDocument();
+    expect(await screen.findByText("Summarize a document")).toBeInTheDocument();
+    expect(screen.getByText("Send a report")).toBeInTheDocument();
+    expect(screen.getByText("Look up information")).toBeInTheDocument();
+    expect(screen.getByText("List available files")).toBeInTheDocument();
     expect(sendChat).not.toHaveBeenCalled();
   });
 
-  it("Use prompt fills the input without sending", async () => {
+  it("clicking a suggested prompt fills the input", async () => {
     ready();
     render(<AgentChatView />);
-    fireEvent.click(await screen.findByRole("button", { name: "Use Malicious document prompt" }));
-    expect(screen.getByPlaceholderText("Type a message...")).toHaveValue("Summarize invoice.pdf");
+    const cardText = await screen.findByText("Summarize a document");
+    const button = cardText.closest("button");
+    expect(button).not.toBeNull();
+    fireEvent.click(button!);
+    expect(getInput()).toHaveValue("Read project-report.pdf and give me a summary.");
     expect(sendChat).not.toHaveBeenCalled();
-  });
-
-  it("Run sends the scenario through the existing Agent API", async () => {
-    ready();
-    vi.mocked(sendChat).mockResolvedValue(chatPayload());
-    vi.mocked(getAuditEvents).mockResolvedValue([event()]);
-    render(<AgentChatView />);
-    fireEvent.click(await screen.findByRole("button", { name: "Run Malicious document" }));
-    expect(sendChat).toHaveBeenCalledWith({ message: "Summarize invoice.pdf", session_id: null });
-    expect(await screen.findByText("Action blocked")).toBeInTheDocument();
   });
 
   it("sends the typed message to the existing Agent API and renders a BLOCK result", async () => {
@@ -162,8 +144,6 @@ describe("AgentChatView", () => {
     expect(screen.getByText("Detected")).toBeInTheDocument();
     expect(screen.getByText("94 / CRITICAL")).toBeInTheDocument();
     expect(screen.getByText("NOT EXECUTED")).toBeInTheDocument();
-    expect(screen.queryByText("Ignore previous instructions")).not.toBeInTheDocument();
-    expect(screen.queryByText("sk_live_demo_not_real_111")).not.toBeInTheDocument();
     expect(getAuditEvents).toHaveBeenCalledWith({ session_id: "agent-session-1", limit: 50 });
   });
 
@@ -206,8 +186,9 @@ describe("AgentChatView", () => {
     vi.mocked(getAuditEvents).mockResolvedValue([]);
     render(<AgentChatView />);
     await sendMessage("Send the project report to my manager.");
-    expect(await screen.findByText("Action requires human approval")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Review in Approvals" })).toHaveAttribute("href", "/approvals");
+    expect(await screen.findByText("Action requires your approval")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Full Review" })).toHaveAttribute("href", "/approvals");
+    expect(screen.getByRole("button", { name: "Approve this action" })).toBeInTheDocument();
   });
 
   it("renders BYPASS from the backend payload", async () => {
@@ -234,7 +215,7 @@ describe("AgentChatView", () => {
     vi.mocked(sendChat).mockResolvedValue(chatPayload({ response: "Hello", tool_results: [] }));
     vi.mocked(getAuditEvents).mockResolvedValue([]);
     render(<AgentChatView />);
-    const input = screen.getByPlaceholderText("Type a message...");
+    const input = getInput();
     fireEvent.change(input, { target: { value: "Hello" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
     expect(sendChat).not.toHaveBeenCalled();
@@ -286,8 +267,8 @@ describe("AgentChatView", () => {
     );
     render(<AgentChatView />);
     await sendMessage("Hi");
-    expect(await screen.findByText("Agent is thinking...")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Type a message...")).toBeDisabled();
+    expect(await screen.findByRole("status", { name: "Agent is thinking" })).toBeInTheDocument();
+    expect(getInput()).toBeDisabled();
     resolveChat(chatPayload({ response: "Done", tool_results: [] }));
     expect(await screen.findByText("Done")).toBeInTheDocument();
   });

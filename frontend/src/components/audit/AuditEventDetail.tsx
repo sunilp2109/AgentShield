@@ -96,6 +96,28 @@ export function AuditEventDetail({
               </button>
             </dd>
           </div>
+          <div>
+            <dt className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase flex items-center justify-between">
+              <span>Agent Prompt</span>
+              {event.user_intent ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  className="h-5 px-1.5 text-[10px]"
+                  aria-label="Copy prompt"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(event.user_intent ?? "");
+                  }}
+                >
+                  Copy prompt
+                </Button>
+              ) : null}
+            </dt>
+            <dd className="mt-1 rounded-lg border border-border/80 bg-muted/40 p-2.5 font-mono text-xs text-foreground whitespace-pre-wrap break-words leading-relaxed">
+              {safeDisplay(event.user_intent)}
+            </dd>
+          </div>
           <Detail label="Source type" value={formatSourceLabel(event.source_type)} />
           <Detail label="Source name" value={safeDisplay(event.source_name)} />
           <Detail label="Trust level" value={safeDisplay(event.trust_level)} />

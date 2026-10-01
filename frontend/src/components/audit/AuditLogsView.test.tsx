@@ -71,6 +71,7 @@ const EVENTS: SecurityEvent[] = [
     timestamp: "2026-09-20T10:38:05Z",
     request_id: "req-off",
     session_id: "attack-lab-malicious-pdf",
+    user_intent: "Summarize financial-report.pdf",
     shield_enabled: false,
     firewall_decision: "BYPASS",
     policy_decision: "BYPASS",
@@ -251,11 +252,23 @@ describe("AuditLogsView", () => {
     expect(within(dialog).getByText("req-abc123")).toBeInTheDocument();
     expect(within(dialog).getByText("demo-attack-001")).toBeInTheDocument();
     expect(within(dialog).getByText("invoice.pdf")).toBeInTheDocument();
-    expect(within(dialog).getAllByText("UNTRUSTED").length).toBeGreaterThan(0);
     expect(within(dialog).getByText("Untrusted content attempted to access a private or sensitive file.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Agent Prompt")).toBeInTheDocument();
     expect(within(dialog).queryByText("password=should-not-render")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Redacted")).toBeInTheDocument();
     expect(within(dialog).queryByText("CONFIDENTIAL - INTERNAL ONLY")).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText("Security decision timeline")).toBeInTheDocument();
+  });
+
+  it("displays the agent prompt in the audit log table and detail drawer", async () => {
+    renderAudit();
+    const promptInstances = await screen.findAllByText("Summarize financial-report.pdf");
+    expect(promptInstances.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("row", { name: /send_email BYPASS/i }));
+    const dialog = await screen.findByRole("dialog", { name: "Event Details" });
+    expect(within(dialog).getByText("Agent Prompt")).toBeInTheDocument();
+    expect(within(dialog).getByText("Summarize financial-report.pdf")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
   });
 
   it("copies the request ID", async () => {

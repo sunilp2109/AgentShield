@@ -1,4 +1,3 @@
-from app.security.trust_engine import SourceType, assess_trust
 from app.tools.schemas import BrowseUrlResult
 
 SAFE_PAGE_URL = "https://intranet.acme.local/handbook"
@@ -42,6 +41,8 @@ class BrowserTool:
     description = "Return simulated webpage content for a predefined URL. Does not fetch live websites."
 
     def browse_url(self, url: str) -> BrowseUrlResult:
+        from app.security.trust_engine import SourceType, assess_trust
+
         lookup = _normalize_url(url)
         page = SIMULATED_PAGES.get(lookup)
         if page is None:

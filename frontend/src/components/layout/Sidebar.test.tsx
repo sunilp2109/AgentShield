@@ -36,6 +36,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Audit Logs" })).toHaveAttribute("href", "/audit");
     expect(screen.getByRole("link", { name: "Attack Lab" })).toHaveAttribute("href", "/attack-lab");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
   });
 
   it("shows an approvals badge only when a count is provided", () => {

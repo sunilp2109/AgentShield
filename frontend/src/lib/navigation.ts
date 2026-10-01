@@ -6,6 +6,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/audit", label: "Audit Logs", icon: ScrollText },
   { href: "/attack-lab", label: "Attack Lab", icon: FlaskConical },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/about", label: "About", icon: Info },
 ];
 
 export const PAGE_TITLES: Record<string, string> = {
@@ -34,6 +36,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/audit": "Audit Logs",
   "/attack-lab": "Attack Lab",
   "/settings": "Shield Control",
+  "/about": "About AgentShield",
 };
 
 export function getPageTitle(pathname: string): string {

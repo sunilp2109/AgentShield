@@ -7,7 +7,7 @@ import {
   RiskBadge,
   ShieldStateBadge,
 } from "@/components/audit/AuditBadges";
-import { formatAuditClock } from "@/lib/audit";
+import { formatAuditClock, safeDisplay } from "@/lib/audit";
 import { formatSourceLabel } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
 import type { SecurityEvent } from "@/types";
@@ -40,12 +40,13 @@ export function AuditEventTable({
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-border text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
               <th className="px-3 py-2">Time</th>
               <th className="hidden px-3 py-2 lg:table-cell">Source</th>
               <th className="px-3 py-2">Tool / Action</th>
+              <th className="hidden px-3 py-2 md:table-cell">Prompt</th>
               <th className="px-3 py-2">Risk</th>
               <th className="px-3 py-2">Decision</th>
               <th className="px-3 py-2">Execution</th>
@@ -75,6 +76,11 @@ export function AuditEventTable({
                 <td className="px-3 py-2 font-mono text-xs">{formatAuditClock(event.timestamp)}</td>
                 <td className="hidden px-3 py-2 lg:table-cell">{formatSourceLabel(event.source_type)}</td>
                 <td className="px-3 py-2 font-medium">{event.tool_name}</td>
+                <td className="hidden px-3 py-2 md:table-cell max-w-[220px]">
+                  <span className="block truncate font-mono text-xs text-foreground/80" title={event.user_intent || ""}>
+                    {safeDisplay(event.user_intent)}
+                  </span>
+                </td>
                 <td className="px-3 py-2">
                   <RiskBadge score={event.risk_score} level={event.risk_level} />
                 </td>
@@ -111,6 +117,12 @@ export function AuditEventTable({
                 <p className="font-medium">{event.tool_name}</p>
                 <DecisionBadge decision={event.firewall_decision} />
               </div>
+              {event.user_intent ? (
+                <p className="mt-1 line-clamp-2 rounded bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/70">Prompt: </span>
+                  {safeDisplay(event.user_intent)}
+                </p>
+              ) : null}
               <p className="mt-1 font-mono text-xs text-muted-foreground">{formatAuditClock(event.timestamp)}</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 <RiskBadge score={event.risk_score} level={event.risk_level} />

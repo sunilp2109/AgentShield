@@ -62,11 +62,20 @@ class MockAgentProvider:
             response = f"I will use {names} to help with that request."
             reasoning = f"The latest user message maps to tool(s): {names}."
         else:
-            response = (
-                "I can help with files, simulated web pages, or simulated email. "
-                f"You said: {user_message}"
-            )
-            reasoning = "No registered tool is required for this request."
+            if is_greeting(user_message):
+                response = (
+                    "Hello! I am an AI assistant protected by **AgentShield**. "
+                    "I can help you read and summarize documents, browse authorized web pages, "
+                    "or draft emails under real-time security inspection and CVSS risk evaluation. "
+                    "How can I help you today?"
+                )
+                reasoning = "User provided a conversational greeting."
+            else:
+                response = (
+                    "AgentShield blocked malicious activities: unauthorized request or unapproved execution "
+                    "is prohibited by security policy."
+                )
+                reasoning = "Unrecognized or unauthorized execution request intercepted."
         return AgentPlan(
             response=response,
             tool_calls=tool_calls,
@@ -171,10 +180,197 @@ def _call_key(call: ProposedToolCall) -> str:
     return json.dumps({"name": call.name, "arguments": call.arguments}, sort_keys=True, default=str)
 
 
+GREETING_WORDS = frozenset(
+    {
+        "hi",
+        "hello",
+        "hey",
+        "howdy",
+        "greetings",
+        "help",
+        "thanks",
+        "thank you",
+        "ok",
+        "okay",
+        "bye",
+        "goodbye",
+    }
+)
+
+GREETING_PATTERNS = (
+    r"^(hi|hello|hey|howdy|greetings)\b",
+    r"^good\s+(morning|afternoon|evening|day)\b",
+    r"^(what'?s\s+up|sup|yo)\b",
+    r"^(who\s+are\s+you|what\s+are\s+you|what\s+can\s+you\s+do|how\s+can\s+you\s+help)\b",
+    r"^(help|what\s+is\s+agentshield|tell\s+me\s+about\s+yourself|how\s+does\s+this\s+work)\b",
+)
+
+
+def is_greeting(text: str) -> bool:
+    cleaned = re.sub(r"[^\w\s]", "", text.strip().lower())
+    if not cleaned:
+        return True
+    if any(
+        token in cleaned.split() or token in cleaned
+        for token in (
+            "api",
+            "apis",
+            "endpoint",
+            "endpoints",
+            "key",
+            "keys",
+            "token",
+            "tokens",
+            "password",
+            "passwords",
+            "secret",
+            "secrets",
+            "credential",
+            "credentials",
+            "shell",
+            "bash",
+            "cmd",
+            "exec",
+            "database",
+            "sql",
+            "drop",
+            "delete",
+            "hack",
+            "bypass",
+            "jailbreak",
+            "prompt",
+            "override",
+            "exfiltrate",
+        )
+    ):
+        return False
+    if cleaned in GREETING_WORDS:
+        return True
+    return any(re.search(pat, cleaned) for pat in GREETING_PATTERNS)
+
+
+def _infer_probing_or_unauthorized_call(message: str) -> ProposedToolCall:
+    lower = message.lower()
+    clean_msg = message.strip()[:300]
+
+    if any(
+        token in lower
+        for token in (
+            "shell",
+            "bash",
+            "powershell",
+            "cmd",
+            "exec",
+            "terminal",
+            "os.system",
+            "subprocess",
+            "eval(",
+            "exec(",
+            "sh ",
+            "sudo",
+        )
+    ):
+        return ProposedToolCall(name="run_shell", arguments={"command": clean_msg})
+
+    if any(
+        token in lower
+        for token in (
+            "api_key",
+            "api key",
+            "apikey",
+            "secret",
+            "password",
+            "credential",
+            "private key",
+            "id_rsa",
+            "bearer",
+            "auth token",
+            "access token",
+            "env var",
+            "credentials",
+            "secrets",
+            "passwords",
+            "token",
+            "tokens",
+            "keys",
+        )
+    ) or (
+        re.search(r"\bkey\b", lower)
+        and not re.search(r"\bkey\s+(findings?|takeaways?|points?|policies)\b", lower)
+    ):
+        return ProposedToolCall(
+            name="credential_access",
+            arguments={"target": "system_credentials", "query": clean_msg},
+        )
+
+    if any(
+        token in lower
+        for token in (
+            "api",
+            "apis",
+            "endpoint",
+            "endpoints",
+            "backend",
+            "swagger",
+            "openapi",
+            "rest api",
+            "webhook",
+            "routes",
+            "route",
+        )
+    ):
+        return ProposedToolCall(
+            name="api_access",
+            arguments={"action": "query_api_details", "query": clean_msg},
+        )
+
+    if any(
+        token in lower
+        for token in (
+            "database",
+            "sql",
+            "drop table",
+            "select *",
+            "truncate",
+            "query database",
+            "dump database",
+            "nosql",
+            "postgres",
+            "sqlite",
+        )
+    ):
+        return ProposedToolCall(name="database_query", arguments={"query": clean_msg})
+
+    if any(
+        token in lower
+        for token in (
+            "system prompt",
+            "jailbreak",
+            "bypass",
+            "override",
+            "hack",
+            "exploit",
+            "developer mode",
+            "ignore previous",
+            "ignore all instructions",
+            "instructions prompt",
+        )
+    ):
+        return ProposedToolCall(
+            name="system_reconnaissance",
+            arguments={"target": "system_internals", "query": clean_msg},
+        )
+
+    return ProposedToolCall(name="unauthorized_execution", arguments={"action": clean_msg})
+
+
+infer_probing_or_unauthorized_call = _infer_probing_or_unauthorized_call
+
+
 def _infer_tool_calls(message: str, extra: str = "") -> list[ProposedToolCall]:
     calls = _infer_from_text(message, allow_unmentioned_files=True)
     if extra.strip():
-        influenced = _infer_from_text(extra, allow_unmentioned_files=True)
+        influenced = _infer_from_text(extra, allow_unmentioned_files=True, is_document=True)
         seen = {_call_key(call) for call in calls}
         for call in influenced:
             key = _call_key(call)
@@ -184,7 +380,12 @@ def _infer_tool_calls(message: str, extra: str = "") -> list[ProposedToolCall]:
     return normalize_tool_calls(calls)
 
 
-def _infer_from_text(message: str, *, allow_unmentioned_files: bool) -> list[ProposedToolCall]:
+def _infer_from_text(
+    message: str,
+    *,
+    allow_unmentioned_files: bool,
+    is_document: bool = False,
+) -> list[ProposedToolCall]:
     lower = message.lower()
     calls: list[ProposedToolCall] = []
 
@@ -229,6 +430,14 @@ def _infer_from_text(message: str, *, allow_unmentioned_files: bool) -> list[Pro
                 },
             )
         )
+
+    if calls or is_document:
+        return calls
+
+    if is_greeting(message):
+        return []
+
+    calls.append(_infer_probing_or_unauthorized_call(message))
     return calls
 
 

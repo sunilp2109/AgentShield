@@ -213,7 +213,7 @@ function DisableShieldDialog({
         </h2>
         <p id={descriptionId} className="mt-2 text-sm text-muted-foreground">
           Shield OFF allows the baseline agent behavior to execute without security enforcement.
-          This mode is intended for controlled demonstrations.
+          This mode is intended for controlled testing environments.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="outline" autoFocus onClick={onCancel}>

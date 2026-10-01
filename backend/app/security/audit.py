@@ -91,7 +91,7 @@ class SecurityEventOut(BaseModel):
     destination_type: str | None = None
     injection_detected: bool = False
     injection_confidence: float = 0.0
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
     policy_decision: str
     firewall_decision: str
@@ -134,7 +134,7 @@ class AuditEventCreate(BaseModel):
     destination_type: str | None = None
     injection_detected: bool = False
     injection_confidence: float = Field(default=0.0, ge=0, le=1)
-    risk_score: int | None = Field(default=None, ge=0, le=100)
+    risk_score: float | None = Field(default=None, ge=0.0, le=10.0)
     risk_level: str | None = None
     policy_decision: str
     firewall_decision: str
@@ -163,7 +163,7 @@ class AuditService:
                 source_type=_clip(event.source_type, 32),
                 source_name=_sanitize_text(event.source_name, max_len=255),
                 trust_level=_clip(event.trust_level, 32),
-                user_intent=_sanitize_text(event.user_intent, max_len=240),
+                user_intent=_sanitize_text(event.user_intent, max_len=2000),
                 tool_name=_clip(event.tool_name, 64) or "unknown",
                 action=_clip(event.action or event.tool_name, 64) or "unknown",
                 target_resource=_sanitize_text(event.target_resource, max_len=255),
@@ -325,6 +325,39 @@ def get_event_stats() -> AuditStats:
 
 def clear_events() -> int:
     return audit_service.clear_events()
+
+
+def log_chat_turn(
+    *,
+    user_message: str,
+    session_id: str,
+    request_id: str,
+    tool_calls_made: bool = False,
+) -> SecurityEventOut | None:
+    """Record a user chat prompt as an audit event.
+
+    Called for every chat turn so that the prompt always appears in audit
+    logs even when the agent responds conversationally without using any tools.
+    """
+    decision = "ALLOW"
+    return log_event(
+        {
+            "session_id": session_id or "default",
+            "request_id": request_id,
+            "shield_enabled": shield_state.shield_enabled,
+            "source_type": "USER_REQUEST",
+            "source_name": "user",
+            "user_intent": _sanitize_text(user_message, max_len=2000),
+            "tool_name": "chat",
+            "action": "chat_message",
+            "policy_decision": decision,
+            "firewall_decision": decision,
+            "execution_status": "EXECUTED",
+            "execution_result_summary": (
+                "Agent used tools to respond." if tool_calls_made else "Agent responded conversationally."
+            ),
+        }
+    )
 
 
 def log_firewall_result(
@@ -505,7 +538,7 @@ def _data_sensitivity(
 
 
 def _user_intent(context: dict[str, Any]) -> str | None:
-    return _sanitize_text(str(context.get("user_intent") or context.get("user_message") or "") or None)
+    return _sanitize_text(str(context.get("user_intent") or context.get("user_message") or "") or None, max_len=2000)
 
 
 def _result_summary(decision: str, module_status: str, tool_name: str) -> str:

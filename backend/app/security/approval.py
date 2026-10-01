@@ -36,7 +36,6 @@ from app.security.state import shield_state
 from app.security.trust_engine import TrustAssessment, assess_trust
 from app.shield.models import FirewallDecision
 from app.tools.executor import execute_tool
-from app.tools.registry import TOOL_REGISTRY
 
 logger = logging.getLogger("agentshield.approval")
 
@@ -106,7 +105,7 @@ class ApprovalRequestOut(BaseModel):
     destination_type: str | None = None
     injection_detected: bool = False
     injection_confidence: float = 0.0
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
     policy_decision: str
     reason: str | None = None
@@ -401,6 +400,7 @@ class ApprovalService:
             _validate_arguments,
             _validate_filesystem_path,
         )
+        from app.tools.registry import TOOL_REGISTRY
 
         name = row.tool_name
         arguments = dict(row.tool_arguments or {})

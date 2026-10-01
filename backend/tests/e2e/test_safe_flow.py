@@ -29,13 +29,19 @@ def test_safe_documentation_browse_is_allowed_and_logged(monkeypatch) -> None:
 
     events = audit_events(session_id="e2e-safe-docs", limit=50)
     assert events
-    event = events[0]
-    assert event["firewall_decision"] == "ALLOW"
-    assert event["policy_decision"] == "ALLOW"
-    assert event["execution_status"] == "EXECUTED"
-    assert event["injection_detected"] is False
-    assert event["risk_level"] == "LOW"
-    assert event["shield_enabled"] is True
+    # The chat route now logs a top-level chat_message event for every turn;
+    # find the browse_url firewall event specifically.
+    browse_event = next(
+        (e for e in events if e["tool_name"] == "browse_url"),
+        None,
+    )
+    assert browse_event is not None, f"Expected a browse_url audit event; got: {[e['tool_name'] for e in events]}"
+    assert browse_event["firewall_decision"] == "ALLOW"
+    assert browse_event["policy_decision"] == "ALLOW"
+    assert browse_event["execution_status"] == "EXECUTED"
+    assert browse_event["injection_detected"] is False
+    assert browse_event["risk_level"] == "LOW"
+    assert browse_event["shield_enabled"] is True
     stats = audit_stats()
     assert stats["allowed"] >= 1
     assert stats["total_events"] >= 1

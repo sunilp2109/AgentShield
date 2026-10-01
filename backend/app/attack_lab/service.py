@@ -38,7 +38,7 @@ class PipelineStageOut(BaseModel):
     trust_level: str | None = None
     injection_detected: bool | None = None
     injection_confidence: float | None = None
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
     policy_decision: str | None = None
     firewall_decision: str | None = None
@@ -56,7 +56,7 @@ class AttackRunResult(BaseModel):
     request_id: str
     injection_detected: bool = False
     injection_confidence: float = 0.0
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
     policy_decision: str | None = None
     firewall_decision: str | None = None

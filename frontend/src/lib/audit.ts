@@ -132,6 +132,7 @@ export function searchEvents(events: SecurityEvent[], query: string): SecurityEv
       event.target_resource,
       event.request_id,
       event.session_id,
+      event.user_intent,
     ]
       .filter(Boolean)
       .join(" ")

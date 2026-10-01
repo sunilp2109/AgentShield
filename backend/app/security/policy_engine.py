@@ -40,7 +40,7 @@ _detector = Detector()
 
 class PolicyDecision(BaseModel):
     decision: FirewallDecision
-    risk_score: int = Field(ge=0, le=100)
+    risk_score: float = Field(ge=0.0, le=10.0)
     risk_level: RiskLevel
     reason: str
     policy_rule: str
@@ -115,7 +115,7 @@ def evaluate_policy(
             "HIGH_RISK_USER_ACTION",
         )
 
-    if trusted_user and risk.risk_score <= 39:
+    if trusted_user and risk.risk_score <= 3.9:
         return _result(
             FirewallDecision.ALLOW,
             risk,
@@ -123,14 +123,14 @@ def evaluate_policy(
             "LOW_RISK_ACTION",
         )
 
-    if risk.risk_score >= 70:
+    if risk.risk_score >= 7.0:
         return _result(
             FirewallDecision.BLOCK,
             risk,
             "Risk score is at or above the block threshold.",
             "RISK_THRESHOLD_BLOCK",
         )
-    if risk.risk_score >= 40:
+    if risk.risk_score >= 4.0:
         return _result(
             FirewallDecision.APPROVAL_REQUIRED,
             risk,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import agent, approvals, attack_lab, audit, chat, health, security, shield
+from app.api.routes import agent, approvals, attack_lab, audit, chat, dojo, health, security, shield
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -13,4 +13,5 @@ v1_router.include_router(security.router, tags=["security"])
 v1_router.include_router(audit.router, tags=["audit"])
 v1_router.include_router(approvals.router, tags=["approvals"])
 v1_router.include_router(attack_lab.router, tags=["attack-lab"])
+v1_router.include_router(dojo.router, tags=["dojo"])
 api_router.include_router(v1_router, prefix="/v1")

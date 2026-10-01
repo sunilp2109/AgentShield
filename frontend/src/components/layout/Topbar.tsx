@@ -54,10 +54,10 @@ export function Topbar({ pathname, onMenuClick }: TopbarProps) {
         />
         <span
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground"
-          title="Demo operator"
+          title="Operator"
         >
           <CircleUser className="size-3.5" aria-hidden="true" />
-          Demo
+          Operator
         </span>
       </div>
     </header>

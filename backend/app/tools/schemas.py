@@ -4,7 +4,16 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.security.trust_engine import SourceType, TrustAssessment, assess_trust
+
+def _default_trust(source_name: str) -> Any:
+    from app.security.trust_engine import SourceType, assess_trust
+
+    mapping = {
+        "webpage": SourceType.WEBPAGE,
+        "file": SourceType.LOCAL_PRIVATE_FILE,
+        "tool": SourceType.TOOL_RESPONSE,
+    }
+    return assess_trust(mapping.get(source_name, SourceType.TOOL_RESPONSE))
 
 
 class RiskLevel(str, Enum):
@@ -28,24 +37,20 @@ class BrowseUrlResult(BaseModel):
     title: str
     content: str
     status: str
-    trust: TrustAssessment = Field(
-        default_factory=lambda: assess_trust(SourceType.WEBPAGE)
-    )
+    trust: Any = Field(default_factory=lambda: _default_trust("webpage"))
 
 
 class ListFilesResult(BaseModel):
     files: list[str]
     status: str
-    trust: TrustAssessment = Field(
-        default_factory=lambda: assess_trust(SourceType.LOCAL_PRIVATE_FILE)
-    )
+    trust: Any = Field(default_factory=lambda: _default_trust("file"))
 
 
 class ReadFileResult(BaseModel):
     path: str
     content: str
     status: str
-    trust: TrustAssessment
+    trust: Any = Field(default_factory=lambda: _default_trust("file"))
 
 
 class SendEmailRequest(BaseModel):
@@ -61,6 +66,37 @@ class SendEmailResult(BaseModel):
     body: str
     attachments: list[str]
     status: str
-    trust: TrustAssessment = Field(
-        default_factory=lambda: assess_trust(SourceType.TOOL_RESPONSE)
-    )
+    trust: Any = Field(default_factory=lambda: _default_trust("tool"))
+
+
+TOOL_PARAMETERS: dict[str, dict[str, Any]] = {
+    "browse_url": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "URL of a simulated page to open"},
+        },
+        "required": ["url"],
+    },
+    "list_files": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+    "read_file": {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "File name to read"},
+        },
+        "required": ["path"],
+    },
+    "send_email": {
+        "type": "object",
+        "properties": {
+            "recipient": {"type": "string"},
+            "subject": {"type": "string"},
+            "body": {"type": "string"},
+            "attachments": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["recipient", "subject", "body"],
+    },
+}

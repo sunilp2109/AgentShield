@@ -9,38 +9,7 @@ from typing import Any
 
 from app.agent.state import ProposedToolCall
 from app.tools.registry import TOOL_REGISTRY
-
-TOOL_PARAMETERS: dict[str, dict[str, Any]] = {
-    "browse_url": {
-        "type": "object",
-        "properties": {
-            "url": {"type": "string", "description": "URL of a simulated page to open"},
-        },
-        "required": ["url"],
-    },
-    "list_files": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-    },
-    "read_file": {
-        "type": "object",
-        "properties": {
-            "path": {"type": "string", "description": "File name to read"},
-        },
-        "required": ["path"],
-    },
-    "send_email": {
-        "type": "object",
-        "properties": {
-            "recipient": {"type": "string"},
-            "subject": {"type": "string"},
-            "body": {"type": "string"},
-            "attachments": {"type": "array", "items": {"type": "string"}},
-        },
-        "required": ["recipient", "subject", "body"],
-    },
-}
+from app.tools.schemas import TOOL_PARAMETERS
 
 
 def build_tool_catalog() -> list[dict[str, Any]]:
@@ -63,7 +32,7 @@ def registered_tool_names() -> set[str]:
     return set(TOOL_REGISTRY)
 
 
-def normalize_tool_calls(raw_calls: list[Any]) -> list[ProposedToolCall]:
+def normalize_tool_calls(raw_calls: list[Any], *, allow_unregistered: bool = True) -> list[ProposedToolCall]:
     allowed = registered_tool_names()
     normalized: list[ProposedToolCall] = []
     for item in raw_calls:
@@ -76,7 +45,9 @@ def normalize_tool_calls(raw_calls: list[Any]) -> list[ProposedToolCall]:
             )
         else:
             continue
-        if call.name not in allowed:
+        if not call.name.strip():
+            continue
+        if not allow_unregistered and call.name not in allowed:
             continue
         if not isinstance(call.arguments, dict):
             call.arguments = {}

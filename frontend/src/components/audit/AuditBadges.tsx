@@ -5,10 +5,11 @@ import { decisionLabel, executionLabel } from "@/lib/audit";
 import { cn } from "@/lib/utils";
 
 const RISK_STYLES: Record<string, string> = {
+  NONE: "border-border bg-muted text-muted-foreground",
   LOW: "border-success/30 bg-success/10 text-success",
   MEDIUM: "border-warning/30 bg-warning/10 text-warning",
   HIGH: "border-destructive/40 bg-destructive/10 text-destructive",
-  CRITICAL: "border-destructive/30 bg-destructive/10 text-destructive",
+  CRITICAL: "border-destructive/30 bg-destructive/10 text-destructive font-bold",
 };
 
 const EXECUTION_STYLES: Record<string, string> = {
@@ -73,15 +74,19 @@ export function RiskBadge({
   if (score == null && !level) {
     return <span className="text-xs text-muted-foreground">—</span>;
   }
+  // Format CVSS score: always show one decimal place (e.g. 7.0, 9.4)
+  const displayScore = score != null ? score.toFixed(1) : null;
+  const cvssTitle = displayScore ? `CVSS ${displayScore} — ${level ?? ""}` : level ?? "";
   return (
     <span
+      title={cvssTitle}
       className={cn(
         "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium tracking-wide",
         RISK_STYLES[level ?? ""] ?? "border-border bg-muted text-muted-foreground",
         className,
       )}
     >
-      {score != null ? <span>{score}</span> : null}
+      {displayScore != null ? <span>{displayScore}</span> : null}
       {level ? <span>{level}</span> : null}
     </span>
   );

@@ -17,7 +17,7 @@ export function AuditDecisionTimeline({ event }: AuditDecisionTimelineProps) {
       label: "Risk",
       value:
         event.risk_score != null || event.risk_level
-          ? `RISK ${[event.risk_score, event.risk_level].filter((item) => item != null && item !== "").join(" / ")}`
+          ? `CVSS ${event.risk_score != null ? event.risk_score.toFixed(1) : ""}${event.risk_level ? " / " + event.risk_level : ""}`.trim()
           : null,
     },
     { label: "Policy", value: event.policy_decision },

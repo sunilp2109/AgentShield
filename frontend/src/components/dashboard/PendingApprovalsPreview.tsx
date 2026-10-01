@@ -47,7 +47,7 @@ export function PendingApprovalsPreview({ approvals, status }: PendingApprovalsP
             <li key={item.id} className="rounded-lg border border-border/80 px-3 py-2">
               <p className="text-sm font-medium">{item.tool_name}</p>
               <p className="text-xs text-muted-foreground">
-                Risk {item.risk_score ?? "n/a"} · {formatRelativeTime(item.created_at)}
+                Risk CVSS {item.risk_score != null ? item.risk_score.toFixed(1) : "n/a"} · {formatRelativeTime(item.created_at)}
               </p>
             </li>
           ))}

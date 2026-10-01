@@ -21,7 +21,7 @@ class ToolRun(BaseModel):
     execution_status: str | None = None
     approval_required: bool = False
     approval_id: str | None = None
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
 
 

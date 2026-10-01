@@ -1,4 +1,3 @@
-from app.security.trust_engine import SourceType, assess_trust
 from app.tools.schemas import SendEmailRequest, SendEmailResult
 
 
@@ -13,6 +12,8 @@ class EmailTool:
         body: str,
         attachments: list[str] | None = None,
     ) -> SendEmailResult:
+        from app.security.trust_engine import SourceType, assess_trust
+
         request = SendEmailRequest(
             recipient=recipient,
             subject=subject,

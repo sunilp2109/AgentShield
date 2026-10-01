@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from app.security.trust_engine import SourceType, assess_trust
 from app.tools.schemas import ListFilesResult, ReadFileResult
 
 
@@ -20,6 +19,8 @@ class FileSystemTool:
         self.root = (root or default_files_root()).resolve()
 
     def list_files(self) -> ListFilesResult:
+        from app.security.trust_engine import SourceType, assess_trust
+
         root = self._require_root()
         files = sorted(path.name for path in root.iterdir() if path.is_file())
         return ListFilesResult(
@@ -29,6 +30,8 @@ class FileSystemTool:
         )
 
     def read_file(self, path: str) -> ReadFileResult:
+        from app.security.trust_engine import SourceType, assess_trust
+
         target = self._resolve_inside_root(path)
         if not target.is_file():
             raise FileNotFoundError(f"File not found: {path}")

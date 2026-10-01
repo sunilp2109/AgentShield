@@ -1,4 +1,12 @@
-"""Risk scoring for AgentShield tool requests."""
+"""Risk scoring for AgentShield tool requests.
+
+Scores follow the CVSS v3.1 severity scale:
+  None:     0.0
+  Low:      0.1 – 3.9
+  Medium:   4.0 – 6.9
+  High:     7.0 – 8.9
+  Critical: 9.0 – 10.0
+"""
 
 from __future__ import annotations
 
@@ -10,22 +18,26 @@ from pydantic import BaseModel, Field
 from app.security.detector import Detector
 from app.security.trust_engine import SourceType, TrustLevel, assess_trust
 
-TOOL_BASELINE_RISK: dict[str, int] = {
-    "browse_url": 10,
-    "list_files": 10,
-    "read_public_file": 15,
-    "read_private_file": 60,
-    "read_file": 15,
-    "write_file": 70,
-    "send_email": 70,
-    "external_upload": 90,
+# ---------------------------------------------------------------------------
+# Baselines — expressed on the CVSS 0.0–10.0 scale
+# ---------------------------------------------------------------------------
+TOOL_BASELINE_RISK: dict[str, float] = {
+    "browse_url": 1.0,
+    "list_files": 1.0,
+    "read_public_file": 1.5,
+    "read_private_file": 6.0,
+    "read_file": 1.5,
+    "write_file": 7.0,
+    "send_email": 7.0,
+    "external_upload": 9.0,
 }
 
-UNTRUSTED_SOURCE_MODIFIER = 20
-PROMPT_INJECTION_MODIFIER = 30
-SENSITIVE_DATA_MODIFIER = 25
-EXTERNAL_DESTINATION_MODIFIER = 25
-CRITICAL_ACTION_MODIFIER = 20
+# Modifiers — expressed on the CVSS 0.0–10.0 scale
+UNTRUSTED_SOURCE_MODIFIER: float = 2.0
+PROMPT_INJECTION_MODIFIER: float = 3.0
+SENSITIVE_DATA_MODIFIER: float = 2.5
+EXTERNAL_DESTINATION_MODIFIER: float = 2.5
+CRITICAL_ACTION_MODIFIER: float = 2.0
 
 CRITICAL_ACTIONS = frozenset({"write_file", "external_upload"})
 PRIVATE_FILE_NAMES = frozenset({"confidential.txt", "employee_data.txt"})
@@ -35,6 +47,7 @@ _detector = Detector()
 
 
 class RiskLevel(str, Enum):
+    NONE = "NONE"
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -42,7 +55,7 @@ class RiskLevel(str, Enum):
 
 
 class RiskAssessment(BaseModel):
-    risk_score: int = Field(ge=0, le=100)
+    risk_score: float = Field(ge=0.0, le=10.0)
     risk_level: RiskLevel
     factors: list[str] = Field(default_factory=list)
     explanation: str = ""
@@ -57,7 +70,7 @@ def assess_risk(
     metadata = metadata or {}
     signals = _collect_signals(tool_name, arguments, metadata)
 
-    score = signals.baseline
+    score: float = signals.baseline
     factors = [f"tool_baseline:{signals.baseline_label}={signals.baseline}"]
 
     if signals.untrusted_source:
@@ -76,7 +89,7 @@ def assess_risk(
         score += CRITICAL_ACTION_MODIFIER
         factors.append(f"critical_action=+{CRITICAL_ACTION_MODIFIER}")
 
-    score = min(100, max(0, score))
+    score = round(min(10.0, max(0.0, score)), 1)
     level = _risk_level(score)
     return RiskAssessment(
         risk_score=score,
@@ -89,7 +102,7 @@ def assess_risk(
 class _Signals:
     def __init__(self) -> None:
         self.tool_name = ""
-        self.baseline = 0
+        self.baseline: float = 0.0
         self.baseline_label = ""
         self.source_type = SourceType.USER
         self.untrusted_source = False
@@ -136,13 +149,13 @@ def _collect_signals(
     return signals
 
 
-def _baseline_for(tool_name: str, private_file: bool) -> tuple[int, str]:
+def _baseline_for(tool_name: str, private_file: bool) -> tuple[float, str]:
     if tool_name == "read_file":
         label = "read_private_file" if private_file else "read_public_file"
         return TOOL_BASELINE_RISK[label], label
     if tool_name in TOOL_BASELINE_RISK:
         return TOOL_BASELINE_RISK[tool_name], tool_name
-    return 50, "unknown_tool"
+    return 5.0, "unknown_tool"
 
 
 def _resolve_source_type(arguments: dict[str, Any], metadata: dict[str, Any]) -> SourceType:
@@ -227,14 +240,17 @@ def _string_list(value: object) -> list[str]:
     return []
 
 
-def _risk_level(score: int) -> RiskLevel:
-    if score >= 80:
+def _risk_level(score: float) -> RiskLevel:
+    """Map a CVSS 0.0–10.0 score to a severity band."""
+    if score >= 9.0:
         return RiskLevel.CRITICAL
-    if score >= 50:
+    if score >= 7.0:
         return RiskLevel.HIGH
-    if score >= 25:
+    if score >= 4.0:
         return RiskLevel.MEDIUM
-    return RiskLevel.LOW
+    if score > 0.0:
+        return RiskLevel.LOW
+    return RiskLevel.NONE
 
 
 def _explain(signals: _Signals) -> str:

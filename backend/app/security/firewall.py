@@ -10,7 +10,6 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from app.agent.state import ProposedToolCall
-from app.agent.tool_adapter import TOOL_PARAMETERS
 from app.security.audit import log_firewall_result
 from app.security.detector import DetectionResult, Detector
 from app.security.policy_engine import PolicyDecision, evaluate_policy
@@ -19,8 +18,7 @@ from app.security.state import shield_state
 from app.security.trust_engine import SourceType, TrustAssessment, assess_trust
 from app.shield.models import FirewallDecision
 from app.tools.executor import execute_tool
-from app.tools.filesystem import FileSystemTool, PathEscapeError
-from app.tools.registry import TOOL_REGISTRY
+from app.tools.schemas import TOOL_PARAMETERS
 
 logger = logging.getLogger("agentshield.firewall")
 
@@ -54,7 +52,7 @@ class FirewallResult(BaseModel):
     decision: str
     execution_status: str
     tool: str
-    risk_score: int | None = None
+    risk_score: float | None = None
     risk_level: str | None = None
     reason: str = ""
     result: Any | None = None
@@ -99,17 +97,18 @@ class ActionFirewall:
         name = call.name.strip()
 
         if _is_forbidden_tool(name):
-            return _reject(name, "System/shell execution is not allowed.")
+            return _reject(name, "System/shell execution is not allowed.", snapshot=snapshot)
+        from app.tools.registry import TOOL_REGISTRY
         if name not in TOOL_REGISTRY:
-            return _reject(name, "Tool is not registered with AgentShield.")
+            return _reject(name, "Tool is not registered with AgentShield.", snapshot=snapshot)
 
         invalid = _validate_arguments(name, call.arguments)
         if invalid:
-            return _reject(name, invalid)
+            return _reject(name, invalid, snapshot=snapshot)
 
         path_error = _validate_filesystem_path(name, call.arguments)
         if path_error:
-            return _reject(name, path_error)
+            return _reject(name, path_error, snapshot=snapshot)
 
         if not shield_state.shield_enabled:
             return self._bypass(call)
@@ -326,6 +325,7 @@ def _validate_filesystem_path(name: str, arguments: dict[str, Any]) -> str | Non
     path = arguments.get("path")
     if not isinstance(path, str):
         return "Missing required argument 'path'."
+    from app.tools.filesystem import FileSystemTool, PathEscapeError
     try:
         FileSystemTool()._resolve_inside_root(path)
     except PathEscapeError:
@@ -396,13 +396,72 @@ def _store_pending(
     return pending_id
 
 
-def _reject(tool: str, reason: str) -> FirewallResult:
-    logger.info("tool=%s decision=BLOCK execution_status=REJECTED risk_score=%s", tool, None)
+def _reject(tool: str, reason: str, snapshot: _EvalSnapshot | None = None) -> FirewallResult:
+    is_shell = _is_forbidden_tool(tool)
+    tool_lower = tool.lower()
+    from app.security.policy_engine import PolicyDecision
+    from app.security.risk_engine import RiskAssessment, RiskLevel
+
+    if is_shell:
+        score = 9.4
+        level = RiskLevel.CRITICAL
+        rule = "FORBIDDEN_EXECUTION_BLOCKED"
+    elif "api" in tool_lower or "endpoint" in tool_lower:
+        score = 8.8
+        level = RiskLevel.HIGH
+        rule = "UNAUTHORIZED_API_ACCESS"
+    elif any(token in tool_lower for token in ("credential", "secret", "password", "key")):
+        score = 9.0
+        level = RiskLevel.CRITICAL
+        rule = "UNTRUSTED_CREDENTIAL_ACCESS"
+    elif any(token in tool_lower for token in ("recon", "system_prompt", "jailbreak")):
+        score = 8.8
+        level = RiskLevel.HIGH
+        rule = "SYSTEM_RECONNAISSANCE_BLOCKED"
+    elif "database" in tool_lower or "sql" in tool_lower:
+        score = 9.2
+        level = RiskLevel.CRITICAL
+        rule = "UNAUTHORIZED_DATABASE_ACCESS"
+    elif "outside the controlled" in reason.lower() or "traversal" in reason.lower():
+        score = 8.5
+        level = RiskLevel.HIGH
+        rule = "PATH_TRAVERSAL_BLOCKED"
+    elif reason.startswith("Missing") or "argument" in reason.lower():
+        score = 5.0
+        level = RiskLevel.MEDIUM
+        rule = "INVALID_TOOL_PAYLOAD"
+    else:
+        score = 8.5
+        level = RiskLevel.HIGH
+        rule = "UNAUTHORIZED_TOOL_REQUEST"
+
+    risk = RiskAssessment(
+        risk_score=score,
+        risk_level=level,
+        factors=[f"rejected_tool:{tool}"],
+        explanation=f"Firewall blocked execution: {reason}",
+    )
+    policy = PolicyDecision(
+        decision=FirewallDecision.BLOCK,
+        risk_score=score,
+        risk_level=level,
+        reason=reason,
+        policy_rule=rule,
+        requires_human_approval=False,
+    )
+    if snapshot is not None:
+        snapshot.risk = risk
+        snapshot.policy = policy
+
+    logger.info("tool=%s decision=BLOCK execution_status=REJECTED risk_score=%s", tool, score)
     return FirewallResult(
         decision="BLOCK",
         execution_status="REJECTED",
         tool=tool,
+        risk_score=score,
+        risk_level=level.value,
         reason=reason,
+        policy_rule=rule,
     )
 
 

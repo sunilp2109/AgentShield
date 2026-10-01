@@ -6,7 +6,7 @@ export type FirewallDecision = SecurityDecision;
 
 export type ToolName = "browser" | "filesystem" | "email" | string;
 
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type RiskLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type ExecutionStatus =
   | "EXECUTED"

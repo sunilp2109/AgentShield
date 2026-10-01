@@ -1,10 +1,11 @@
 from app.security.risk_engine import RiskLevel, assess_risk
 from app.shield.models import FirewallDecision, PipelineResult, ToolRequest
-from app.tools.registry import TOOL_REGISTRY
 
 
 class RiskEngine:
     def evaluate(self, request: ToolRequest) -> PipelineResult:
+        from app.tools.registry import TOOL_REGISTRY
+
         known = set(TOOL_REGISTRY) | {
             "read_public_file",
             "read_private_file",

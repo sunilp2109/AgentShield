@@ -1,87 +1,60 @@
 "use client";
 
-import { CHAT_SCENARIOS } from "@/lib/agent-chat";
-import { cn } from "@/lib/utils";
+import { SUGGESTED_PROMPTS } from "@/lib/agent-chat";
 
-type ChatScenariosProps = {
+type SuggestedPromptsProps = {
   disabled?: boolean;
-  compact?: boolean;
   onFill: (prompt: string) => void;
   onRun?: (prompt: string) => void;
 };
 
-export function ChatScenarios({ disabled = false, compact = false, onFill, onRun }: ChatScenariosProps) {
-  if (compact) {
-    return (
-      <div className="mb-2 flex flex-wrap gap-2" aria-label="Demo scenarios">
-        {CHAT_SCENARIOS.map((scenario) => (
-          <button
-            key={scenario.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => onFill(scenario.prompt)}
-            className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
-          >
-            {scenario.name}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
+function PromptIcon({ name }: { name: string }) {
+  if (name === "file") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  );
+  if (name === "mail") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+  );
+  if (name === "globe") return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  );
   return (
-    <div className="mt-6 w-full max-w-3xl text-left" aria-label="Demo scenarios">
-      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Demo scenarios</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Real user messages through the agent. AgentShield only acts if the model proposes a tool.
-      </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {CHAT_SCENARIOS.map((scenario) => (
-          <article
-            key={scenario.id}
-            className="flex flex-col rounded-2xl border border-border/80 bg-background/60 p-4 text-left"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-sm font-semibold">{scenario.name}</h3>
-              <span
-                className={cn(
-                  "rounded-md border px-1.5 py-0.5 text-[10px] font-medium tracking-wide",
-                  scenario.expected_risk === "CRITICAL"
-                    ? "border-destructive/30 text-destructive"
-                    : scenario.expected_risk === "HIGH"
-                      ? "border-warning/30 text-warning"
-                      : "border-border text-muted-foreground",
-                )}
-              >
-                {scenario.expected_risk}
-              </span>
-            </div>
-            <p className="mt-2 flex-1 text-xs text-muted-foreground">{scenario.description}</p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                disabled={disabled}
-                aria-label={`Use ${scenario.name} prompt`}
-                onClick={() => onFill(scenario.prompt)}
-                className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
-              >
-                Use prompt
-              </button>
-              {onRun ? (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  aria-label={`Run ${scenario.name}`}
-                  onClick={() => onRun(scenario.prompt)}
-                  className="rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
-                >
-                  Run
-                </button>
-              ) : null}
-            </div>
-          </article>
-        ))}
-      </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+
+export function ChatScenarios({ disabled = false, onFill, onRun }: SuggestedPromptsProps) {
+  return (
+    <div className="suggested-prompts-grid" aria-label="Suggested prompts">
+      {SUGGESTED_PROMPTS.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onFill(item.prompt)}
+          className="suggested-prompt-card"
+        >
+          <span className="suggested-prompt-icon">
+            <PromptIcon name={item.icon} />
+          </span>
+          <span className="suggested-prompt-label">{item.label}</span>
+          <span className="suggested-prompt-hint">{item.prompt}</span>
+        </button>
+      ))}
     </div>
   );
 }

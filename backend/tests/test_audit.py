@@ -58,7 +58,7 @@ def test_safe_user_request_creates_allow_event() -> None:
             "session_id": "audit-safe",
             "source_type": SourceType.USER,
             "user_intent": "Open the handbook",
-            "risk": RiskAssessment(risk_score=10, risk_level=RiskLevel.LOW, factors=[], explanation=""),
+            "risk": RiskAssessment(risk_score=1.0, risk_level=RiskLevel.LOW, factors=[], explanation=""),
         },
     )
     assert result.decision == "ALLOW"
@@ -94,7 +94,7 @@ def test_legitimate_email_requires_approval_event(monkeypatch) -> None:
         {
             "session_id": "audit-email",
             "source_type": SourceType.USER,
-            "risk": RiskAssessment(risk_score=55, risk_level=RiskLevel.HIGH, factors=[], explanation=""),
+            "risk": RiskAssessment(risk_score=7.5, risk_level=RiskLevel.HIGH, factors=[], explanation=""),
         },
     )
     assert result.decision == "APPROVAL_REQUIRED"
@@ -124,7 +124,7 @@ def test_malicious_document_injection_is_blocked_and_logged(monkeypatch) -> None
     assert event.injection_detected is True
     assert event.injection_confidence > 0
     assert event.risk_level in {"HIGH", "CRITICAL"}
-    assert (event.risk_score or 0) >= 70
+    assert (event.risk_score or 0) >= 7.0
     assert event.policy_decision == "BLOCK"
     assert event.firewall_decision == "BLOCK"
     assert event.execution_status == "BLOCKED"

@@ -25,12 +25,12 @@ def test_shield_on_trusted_browse_allows_and_executes() -> None:
     shield_state.set_enabled(True)
     result = evaluate_and_execute(
         {"name": "browse_url", "arguments": {"url": SAFE_PAGE_URL}},
-        {"source_type": SourceType.USER, "risk": RiskAssessment(risk_score=10, risk_level=RiskLevel.LOW, factors=[], explanation="")},
+        {"source_type": SourceType.USER, "risk": RiskAssessment(risk_score=1.0, risk_level=RiskLevel.LOW, factors=[], explanation="")},
     )
     assert result.decision == "ALLOW"
     assert result.execution_status == "EXECUTED"
     assert result.tool == "browse_url"
-    assert result.risk_score == 10
+    assert result.risk_score == 1.0
     assert result.result is not None
     assert result.result["status"] == "ok"
 
@@ -39,7 +39,7 @@ def test_shield_on_trusted_file_read_allows_and_executes() -> None:
     shield_state.set_enabled(True)
     result = evaluate_and_execute(
         ProposedToolCall(name="read_file", arguments={"path": "report.txt"}),
-        {"source_type": SourceType.USER, "risk": RiskAssessment(risk_score=20, risk_level=RiskLevel.LOW, factors=[], explanation="")},
+        {"source_type": SourceType.USER, "risk": RiskAssessment(risk_score=2.0, risk_level=RiskLevel.LOW, factors=[], explanation="")},
     )
     assert result.decision == "ALLOW"
     assert result.execution_status == "EXECUTED"
@@ -67,7 +67,7 @@ def test_shield_on_trusted_send_email_requires_approval(monkeypatch) -> None:
         ),
         {
             "source_type": SourceType.USER,
-            "risk": RiskAssessment(risk_score=55, risk_level=RiskLevel.HIGH, factors=[], explanation=""),
+            "risk": RiskAssessment(risk_score=7.5, risk_level=RiskLevel.HIGH, factors=[], explanation=""),
         },
     )
     assert result.decision == "APPROVAL_REQUIRED"
@@ -90,7 +90,7 @@ def test_shield_on_untrusted_pdf_private_file_is_blocked(monkeypatch) -> None:
         {
             "source_type": SourceType.PDF,
             "filename": "invoice.pdf",
-            "risk": RiskAssessment(risk_score=90, risk_level=RiskLevel.CRITICAL, factors=[], explanation=""),
+            "risk": RiskAssessment(risk_score=9.0, risk_level=RiskLevel.CRITICAL, factors=[], explanation=""),
         },
     )
     assert result.decision == "BLOCK"
@@ -107,7 +107,7 @@ def test_shield_on_untrusted_external_email_is_blocked(monkeypatch) -> None:
         MALICIOUS_EMAIL,
         {
             **MALICIOUS_CONTEXT,
-            "risk": RiskAssessment(risk_score=95, risk_level=RiskLevel.CRITICAL, factors=[], explanation=""),
+            "risk": RiskAssessment(risk_score=9.5, risk_level=RiskLevel.CRITICAL, factors=[], explanation=""),
         },
     )
     assert result.decision == "BLOCK"
